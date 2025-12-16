@@ -1,0 +1,30 @@
+# Virtual Environment
+venv/
+env/
+.env
+
+# Python compilation
+__pycache__/
+*.pyc
+
+# IDE settings
+.vscode/
+.idea/
+
+# Distribution / Packaging
+dist/
+build/
+*.spec
+
+# Matrix Lab specific
+*.json  # If we save local projects and don't want them in git
+*.pickle
+
+# Documentation (Project specs)
+Project - Matrix lab.md
+Technical_Specs.md
+UI_UX_Design.md
+
+# OS generated files
+.DS_Store
+Thumbs.db
