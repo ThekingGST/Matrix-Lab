@@ -28,6 +28,9 @@ class WireItem(QGraphicsPathItem):
         self.setAcceptHoverEvents(True)
         self.setZValue(-1)  # Draw behind nodes
         
+        # Make wire selectable
+        self.setFlag(QGraphicsPathItem.GraphicsItemFlag.ItemIsSelectable, True)
+        
         self._update_path()
     
     def set_positions(self, source: QPointF, target: QPointF) -> None:
@@ -61,7 +64,9 @@ class WireItem(QGraphicsPathItem):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         
         # Choose color
-        if self.is_error:
+        if self.isSelected():
+            color = QColor("#2196F3")  # Blue when selected
+        elif self.is_error:
             color = WIRE_ERROR_COLOR
         elif self._hovered:
             color = WIRE_HOVER_COLOR
@@ -69,7 +74,7 @@ class WireItem(QGraphicsPathItem):
             color = WIRE_COLOR
         
         # Draw wire
-        width = 3 if self._hovered else 2
+        width = 4 if self.isSelected() else (3 if self._hovered else 2)
         pen = QPen(color, width)
         pen.setCapStyle(Qt.PenCapStyle.RoundCap)
         painter.setPen(pen)

@@ -276,3 +276,32 @@ class CanvasView(QGraphicsView):
                 # Try to make connection
                 self.connect_nodes(source_id, node_id, socket_index)
                 return
+    
+    def keyPressEvent(self, event) -> None:
+        """Handle keyboard input - Delete key removes selected items."""
+        if event.key() == Qt.Key.Key_Delete:
+            self._delete_selected_items()
+        else:
+            super().keyPressEvent(event)
+    
+    def _delete_selected_items(self) -> None:
+        """Delete all currently selected nodes and wires."""
+        selected = self._scene.selectedItems()
+        
+        for item in selected:
+            if isinstance(item, NodeItem):
+                # Delete node
+                self.remove_node(item.node_data.id)
+            elif isinstance(item, WireItem):
+                # Find and delete wire
+                wire_key = None
+                for key, wire in self._wire_items.items():
+                    if wire is item:
+                        wire_key = key
+                        break
+                if wire_key:
+                    self._remove_wire(wire_key)
+        
+        # Clear selection and notify
+        self.node_selected.emit(None)
+
