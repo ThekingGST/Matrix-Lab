@@ -4,7 +4,8 @@ Sidebar: The Variable Shelf (Zone A) - inventory of matrices and operations.
 from typing import Dict, Callable, Optional
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QListWidget, QListWidgetItem, QFrame, QScrollArea, QSizePolicy
+    QListWidget, QListWidgetItem, QFrame, QScrollArea, QSizePolicy,
+    QTreeWidget, QTreeWidgetItem
 )
 from PySide6.QtCore import Qt, Signal, QMimeData
 from PySide6.QtGui import QDrag, QFont
@@ -74,12 +75,37 @@ class DraggableListWidget(QListWidget):
             drag.exec(Qt.DropAction.CopyAction)
 
 
+class DraggableTreeWidget(QTreeWidget):
+    """Tree widget that supports drag operations for operation nodes."""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setDragEnabled(True)
+        self.setDragDropMode(QTreeWidget.DragDropMode.DragOnly)
+        self.setHeaderHidden(True)
+    
+    def startDrag(self, supportedActions):
+        """Custom drag with MIME data."""
+        item = self.currentItem()
+        if item and item.parent():  # Only allow dragging child items (operations), not categories
+            drag = QDrag(self)
+            mime_data = QMimeData()
+            
+            # Store item data in MIME
+            data = item.data(0, Qt.ItemDataRole.UserRole)
+            if data and isinstance(data, tuple):
+                mime_data.setText(f"OPERATION:{data[0].value}:{data[1]}")
+            
+            drag.setMimeData(mime_data)
+            drag.exec(Qt.DropAction.CopyAction)
+
+
 class Sidebar(QWidget):
     """
     Left sidebar containing:
     - Variable list (defined matrices)
     - New Matrix button
-    - Operations library
+    - Operations library (collapsible tree)
     """
     
     new_matrix_requested = Signal()
@@ -130,16 +156,27 @@ class Sidebar(QWidget):
         self.matrix_list.setStyleSheet("""
             QListWidget {
                 border: 1px solid #E0E0E0;
-                border-radius: 4px;
+                border-radius: 6px;
                 background: white;
+                padding: 4px;
             }
             QListWidget::item {
-                padding: 8px;
-                border-bottom: 1px solid #F0F0F0;
+                padding: 10px 12px;
+                border-radius: 4px;
+                margin: 2px 0;
+                color: #333;
+                background: #FAFAFA;
+                border: 1px solid #F0F0F0;
             }
             QListWidget::item:selected {
                 background-color: #E3F2FD;
-                color: black;
+                color: #1976D2;
+                border: 1px solid #2196F3;
+                font-weight: bold;
+            }
+            QListWidget::item:hover {
+                background-color: #F5F5F5;
+                border: 1px solid #E0E0E0;
             }
         """)
         layout.addWidget(self.matrix_list)
@@ -155,53 +192,82 @@ class Sidebar(QWidget):
         ops_header.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
         layout.addWidget(ops_header)
         
-        # Operations scroll area
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll.setStyleSheet("""
-            QScrollArea {
-                border: none;
+        # Operations tree (collapsible categories)
+        self.operations_tree = DraggableTreeWidget()
+        self.operations_tree.setIndentation(15)
+        self.operations_tree.setStyleSheet("""
+            QTreeWidget {
+                border: 1px solid #E0E0E0;
+                border-radius: 6px;
+                background: #FAFAFA;
+                padding: 4px;
+            }
+            QTreeWidget::item {
+                padding: 8px 6px;
+                color: #333;
+                border-radius: 4px;
+                margin: 2px 0;
+            }
+            QTreeWidget::item:selected {
+                background-color: #E3F2FD;
+                color: #1976D2;
+                font-weight: bold;
+            }
+            QTreeWidget::item:hover {
+                background-color: #F5F5F5;
+                color: #1976D2;
+            }
+            QTreeWidget::branch {
                 background: transparent;
+            }
+            QTreeWidget::branch:has-children:closed {
+                image: url(none);
+                border: none;
+            }
+            QTreeWidget::branch:has-children:open {
+                image: url(none);
+                border: none;
             }
         """)
         
-        ops_container = QWidget()
-        ops_layout = QVBoxLayout(ops_container)
-        ops_layout.setContentsMargins(0, 0, 0, 0)
-        
-        # Add operation categories
+        # Populate tree with operation categories
         for category, operations in OPERATIONS.items():
-            cat_label = QLabel(category)
-            cat_label.setStyleSheet("color: #666; font-weight: bold; margin-top: 8px;")
-            ops_layout.addWidget(cat_label)
+            # Create category item (parent) with arrow only
+            category_item = QTreeWidgetItem([f"▼ {category}"])  # Start with down arrow (expanded)
+            category_item.setFont(0, QFont("Segoe UI", 10, QFont.Weight.Bold))
+            category_item.setForeground(0, Qt.GlobalColor.darkBlue)
+            category_item.setExpanded(True)  # Start expanded
             
-            op_list = DraggableListWidget()
-            op_list.setMaximumHeight(len(operations) * 32 + 10)
-            op_list.setStyleSheet("""
-                QListWidget {
-                    border: 1px solid #E0E0E0;
-                    border-radius: 4px;
-                    background: #FAFAFA;
-                }
-                QListWidget::item {
-                    padding: 4px 8px;
-                }
-                QListWidget::item:hover {
-                    background-color: #E8F5E9;
-                }
-            """)
-            
+            # Add operations as children with subtle indentation
             for op_type, display_name in operations:
-                item = QListWidgetItem(display_name)
-                item.setData(Qt.ItemDataRole.UserRole, (op_type, display_name))
-                op_list.addItem(item)
+                child_item = QTreeWidgetItem([f"  {display_name}"])
+                child_item.setData(0, Qt.ItemDataRole.UserRole, (op_type, display_name))
+                child_item.setFont(0, QFont("Segoe UI", 9))
+                category_item.addChild(child_item)
             
-            ops_layout.addWidget(op_list)
+            self.operations_tree.addTopLevelItem(category_item)
         
-        ops_layout.addStretch()
-        scroll.setWidget(ops_container)
-        layout.addWidget(scroll, 1)
+        # Connect expand/collapse signals to update arrows
+        self.operations_tree.itemExpanded.connect(self._on_item_expanded)
+        self.operations_tree.itemCollapsed.connect(self._on_item_collapsed)
+        
+        layout.addWidget(self.operations_tree, 1)
+    
+    def _on_item_expanded(self, item: QTreeWidgetItem) -> None:
+        """Update arrow when item is expanded."""
+        text = item.text(0)
+        if text.startswith("▶"):
+            # Replace right arrow with down arrow
+            new_text = "▼" + text[1:]
+            item.setText(0, new_text)
+    
+    def _on_item_collapsed(self, item: QTreeWidgetItem) -> None:
+        """Update arrow when item is collapsed."""
+        text = item.text(0)
+        if text.startswith("▼"):
+            # Replace down arrow with right arrow
+            new_text = "▶" + text[1:]
+            item.setText(0, new_text)
     
     def add_matrix(self, node_id: str, name: str, shape: str) -> None:
         """Add a matrix to the variable list."""

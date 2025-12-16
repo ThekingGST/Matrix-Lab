@@ -91,8 +91,14 @@ class MainWindow(QMainWindow):
                 background-color: #F5F7FA;
             }
             QSplitter::handle {
-                background-color: #E0E0E0;
-                width: 2px;
+                background-color: #CFD8DC;
+                width: 1px;
+            }
+            QSplitter::handle:hover {
+                background-color: #90A4AE;
+            }
+            QWidget {
+                font-family: 'Segoe UI', Arial, sans-serif;
             }
         """)
     

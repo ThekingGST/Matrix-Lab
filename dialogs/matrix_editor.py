@@ -86,9 +86,23 @@ class MatrixEditor(QDialog):
         
         # Matrix grid
         self.table = QTableWidget(rows, cols)
-        self.table.setMinimumHeight(200)
+        
+        # Style the headers with dark gray background
+        self.table.setStyleSheet("""
+            QTableWidget {
+                gridline-color: #E0E0E0;
+            }
+            QHeaderView::section {
+                background-color: #666666;
+                color: white;
+                padding: 4px;
+                border: 1px solid #555555;
+                font-weight: bold;
+            }
+        """)
+        
         self._init_table()
-        layout.addWidget(self.table)
+        layout.addWidget(self.table, 1)  # Stretch factor 1 = expand to fill space
         
         # Dialog buttons
         button_layout = QHBoxLayout()
@@ -104,6 +118,9 @@ class MatrixEditor(QDialog):
         button_layout.addWidget(save_btn)
         
         layout.addLayout(button_layout)
+        
+        # Auto-resize dialog to fit content
+        self._resize_to_fit_content()
     
     def _init_table(self) -> None:
         """Initialize table with zero values."""
@@ -117,6 +134,26 @@ class MatrixEditor(QDialog):
                 item = QTableWidgetItem("0")
                 item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 self.table.setItem(r, c, item)
+    
+    def _resize_to_fit_content(self) -> None:
+        """Resize dialog to fit table content with minimal dead space."""
+        # Resize columns to content
+        self.table.resizeColumnsToContents()
+        self.table.resizeRowsToContents()
+        
+        # Calculate required size
+        width = self.table.verticalHeader().width() + 4  # Row header width
+        for i in range(self.table.columnCount()):
+            width += self.table.columnWidth(i)
+        width += self.table.verticalScrollBar().sizeHint().width() + 40  # Margins
+        
+        height = self.table.horizontalHeader().height() + 4  # Column header height
+        for i in range(self.table.rowCount()):
+            height += self.table.rowHeight(i)
+        height += 250  # Space for other controls (name, dimensions, buttons)
+        
+        # Set dialog size
+        self.resize(max(400, min(width, 800)), max(450, min(height, 700)))
     
     def _on_dimensions_changed(self) -> None:
         """Handle dimension changes."""
@@ -136,6 +173,9 @@ class MatrixEditor(QDialog):
                     item = QTableWidgetItem("0")
                     item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                     self.table.setItem(r, c, item)
+        
+        # Resize dialog to fit new dimensions
+        self._resize_to_fit_content()
     
     def _load_matrix(self, matrix: np.ndarray) -> None:
         """Load values from numpy array into table."""

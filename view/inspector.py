@@ -37,12 +37,21 @@ class Inspector(QWidget):
         # Header
         self.header_label = QLabel("Inspector")
         self.header_label.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
+        self.header_label.setStyleSheet("color: #1976D2; padding: 4px;")
         layout.addWidget(self.header_label)
         
-        # Node info section
+        # Node info section (card-style)
         self.info_label = QLabel()
         self.info_label.setWordWrap(True)
-        self.info_label.setStyleSheet("color: #666; padding: 8px;")
+        self.info_label.setStyleSheet("""
+            QLabel {
+                background: white;
+                border: 1px solid #E0E0E0;
+                border-radius: 6px;
+                padding: 12px;
+                color: #333;
+            }
+        """)
         layout.addWidget(self.info_label)
         
         # Data table (hidden initially)
@@ -50,12 +59,20 @@ class Inspector(QWidget):
         self.table.setStyleSheet("""
             QTableWidget {
                 border: 1px solid #E0E0E0;
-                border-radius: 4px;
+                border-radius: 6px;
                 background: white;
                 gridline-color: #F0F0F0;
             }
             QTableWidget::item {
                 padding: 4px;
+                color: #333;
+            }
+            QHeaderView::section {
+                background-color: #666666;
+                color: white;
+                padding: 6px;
+                border: none;
+                font-weight: bold;
             }
         """)
         self.table.hide()
@@ -68,8 +85,9 @@ class Inspector(QWidget):
                 background-color: #4CAF50;
                 color: white;
                 border: none;
-                padding: 8px 16px;
-                border-radius: 4px;
+                padding: 10px 16px;
+                border-radius: 6px;
+                font-weight: bold;
             }
             QPushButton:hover {
                 background-color: #388E3C;
@@ -85,12 +103,14 @@ class Inspector(QWidget):
     def _show_empty_state(self) -> None:
         """Show the empty/tips state."""
         self.info_label.setText(
-            "<b>Tips & Shortcuts</b><br><br>"
-            "• <b>Right-click + drag</b>: Pan canvas<br>"
-            "• <b>Scroll wheel</b>: Zoom in/out<br>"
-            "• <b>Drag from socket</b>: Create wire<br>"
-            "• <b>Click node</b>: View details here<br><br>"
-            "<i>Drag matrices from the sidebar onto the canvas to begin.</i>"
+            "<div style='line-height: 1.6;'>"
+            "<b style='color: #1976D2; font-size: 11pt;'>Quick Tips</b><br><br>"
+            "• <b>Right-click + drag</b> → Pan canvas<br>"
+            "• <b>Scroll wheel</b> → Zoom in/out<br>"
+            "• <b>Drag from socket</b> → Create wire<br>"
+            "• <b>Click node</b> → View details here<br><br>"
+            "<i style='color: #666;'>Drag matrices from the sidebar onto the canvas to begin.</i>"
+            "</div>"
         )
         self.table.hide()
         self.copy_btn.hide()
