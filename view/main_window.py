@@ -80,6 +80,8 @@ class MainWindow(QMainWindow):
         """Connect all signals."""
         # Sidebar signals
         self.sidebar.new_matrix_requested.connect(self._on_new_matrix)
+        self.sidebar.matrix_edit_requested.connect(self._on_edit_matrix)
+        self.sidebar.matrix_delete_requested.connect(self._on_delete_matrix)
         
         # Canvas signals
         self.canvas.node_selected.connect(self._on_node_selected)
@@ -118,6 +120,33 @@ class MainWindow(QMainWindow):
     def _on_node_selected(self, node: NodeData) -> None:
         """Handle node selection on canvas."""
         self.inspector.set_node(node)
+    
+    def _on_edit_matrix(self, node_id: str) -> None:
+        """Handle double-click on matrix in sidebar to edit it."""
+        node = self._matrix_nodes.get(node_id)
+        if not node:
+            return
+        
+        # Open editor with existing data
+        dialog = MatrixEditor(self, name=node.name, matrix=node.matrix)
+        if dialog.exec():
+            name, matrix = dialog.get_result()
+            if matrix is not None:
+                # Update the node data
+                node.name = name
+                node.matrix = matrix
+                
+                # Update sidebar display
+                self.sidebar.update_matrix(node_id, name, node.shape_str)
+    
+    def _on_delete_matrix(self, node_id: str) -> None:
+        """Handle Delete key on matrix in sidebar."""
+        if node_id in self._matrix_nodes:
+            # Remove from storage
+            del self._matrix_nodes[node_id]
+            
+            # Remove from sidebar
+            self.sidebar.remove_matrix(node_id)
     
     def eventFilter(self, obj, event):
         """Filter events for canvas viewport to handle drops."""

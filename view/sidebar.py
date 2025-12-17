@@ -109,6 +109,8 @@ class Sidebar(QWidget):
     """
     
     new_matrix_requested = Signal()
+    matrix_edit_requested = Signal(str)  # matrix_id - for editing existing matrix
+    matrix_delete_requested = Signal(str)  # matrix_id - for deleting matrix
     matrix_drag_started = Signal(str)  # matrix_id
     operation_drag_started = Signal(str, str)  # operation_type, display_name
     
@@ -179,6 +181,8 @@ class Sidebar(QWidget):
                 border: 1px solid #E0E0E0;
             }
         """)
+        self.matrix_list.itemDoubleClicked.connect(self._on_matrix_double_clicked)
+        self.matrix_list.installEventFilter(self)
         layout.addWidget(self.matrix_list)
         
         # Separator
@@ -287,3 +291,23 @@ class Sidebar(QWidget):
         """Update matrix display in list."""
         if node_id in self._matrix_items:
             self._matrix_items[node_id].setText(f"{name} [{shape}]")
+    
+    def _on_matrix_double_clicked(self, item: QListWidgetItem) -> None:
+        """Handle double-click on matrix item to edit it."""
+        node_id = item.data(Qt.ItemDataRole.UserRole)
+        if node_id:
+            self.matrix_edit_requested.emit(node_id)
+    
+    def eventFilter(self, obj, event) -> bool:
+        """Filter events for matrix list - handle Delete key."""
+        if obj == self.matrix_list:
+            if event.type() == event.Type.KeyPress:
+                if event.key() == Qt.Key.Key_Delete:
+                    current_item = self.matrix_list.currentItem()
+                    if current_item:
+                        node_id = current_item.data(Qt.ItemDataRole.UserRole)
+                        if node_id:
+                            self.matrix_delete_requested.emit(node_id)
+                            return True
+        return super().eventFilter(obj, event)
+
