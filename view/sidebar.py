@@ -239,7 +239,7 @@ class Sidebar(QWidget):
         # Populate tree with operation categories
         for category, operations in OPERATIONS.items():
             # Create category item (parent) with arrow only
-            category_item = QTreeWidgetItem([f"▼ {category}"])  # Start with down arrow (expanded)
+            category_item = QTreeWidgetItem([f"▶ {category}"])  # Start with down arrow (expanded)
             category_item.setFont(0, QFont("Segoe UI", 10, QFont.Weight.Bold))
             category_item.setForeground(0, Qt.GlobalColor.darkBlue)
             category_item.setExpanded(True)  # Start expanded
