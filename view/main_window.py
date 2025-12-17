@@ -80,11 +80,15 @@ class MainWindow(QMainWindow):
         """Connect all signals."""
         # Sidebar signals
         self.sidebar.new_matrix_requested.connect(self._on_new_matrix)
+        self.sidebar.matrix_selected.connect(self._on_matrix_selected)
         self.sidebar.matrix_edit_requested.connect(self._on_edit_matrix)
         self.sidebar.matrix_delete_requested.connect(self._on_delete_matrix)
         
         # Canvas signals
         self.canvas.node_selected.connect(self._on_node_selected)
+        
+        # Inspector signals
+        self.inspector.add_matrix_requested.connect(self._on_add_matrix_from_result)
     
     def _apply_styles(self) -> None:
         """Apply global stylesheet."""
@@ -121,6 +125,12 @@ class MainWindow(QMainWindow):
         """Handle node selection on canvas."""
         self.inspector.set_node(node)
     
+    def _on_matrix_selected(self, node_id: str) -> None:
+        """Handle matrix selection in sidebar to show preview in Inspector."""
+        node = self._matrix_nodes.get(node_id)
+        if node:
+            self.inspector.set_node(node)
+    
     def _on_edit_matrix(self, node_id: str) -> None:
         """Handle double-click on matrix in sidebar to edit it."""
         node = self._matrix_nodes.get(node_id)
@@ -147,6 +157,27 @@ class MainWindow(QMainWindow):
             
             # Remove from sidebar
             self.sidebar.remove_matrix(node_id)
+    
+    def _on_add_matrix_from_result(self, result_node: NodeData) -> None:
+        """Add a matrix from Result node as a new variable."""
+        if result_node.matrix is None:
+            return
+        
+        # Create a new matrix variable with a unique name
+        base_name = "Result"
+        counter = 1
+        name = base_name
+        existing_names = {n.name for n in self._matrix_nodes.values()}
+        while name in existing_names:
+            counter += 1
+            name = f"{base_name}_{counter}"
+        
+        # Create node data for the new variable
+        node = NodeData(name, NodeType.DATA, OperationType.NONE, result_node.matrix.copy())
+        self._matrix_nodes[node.id] = node
+        
+        # Add to sidebar
+        self.sidebar.add_matrix(node.id, name, node.shape_str)
     
     def eventFilter(self, obj, event):
         """Filter events for canvas viewport to handle drops."""

@@ -8,10 +8,10 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QTableWidget, QTableWidgetItem,
     QPushButton, QHBoxLayout, QApplication
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont
 
-from model.node_data import NodeData
+from model.node_data import NodeData, NodeType, OperationType
 
 
 class Inspector(QWidget):
@@ -19,6 +19,8 @@ class Inspector(QWidget):
     Right panel that shows detailed matrix data for selected nodes.
     Context-sensitive: shows tips when nothing selected, data when node selected.
     """
+    
+    add_matrix_requested = Signal(object)  # Emits NodeData for adding as variable
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -97,6 +99,25 @@ class Inspector(QWidget):
         self.copy_btn.hide()
         layout.addWidget(self.copy_btn)
         
+        # Add Matrix button (only for Result nodes)
+        self.add_matrix_btn = QPushButton("Add as Variable")
+        self.add_matrix_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #2196F3;
+                color: white;
+                border: none;
+                padding: 10px 16px;
+                border-radius: 6px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #1976D2;
+            }
+        """)
+        self.add_matrix_btn.clicked.connect(self._on_add_matrix_clicked)
+        self.add_matrix_btn.hide()
+        layout.addWidget(self.add_matrix_btn)
+        
         # Stretch at bottom
         layout.addStretch()
     
@@ -114,6 +135,7 @@ class Inspector(QWidget):
         )
         self.table.hide()
         self.copy_btn.hide()
+        self.add_matrix_btn.hide()
     
     def set_node(self, node: Optional[NodeData]) -> None:
         """Update inspector to show data for the given node."""
@@ -141,6 +163,12 @@ class Inspector(QWidget):
         else:
             self.table.hide()
             self.copy_btn.hide()
+        
+        # Show Add Matrix button only for Result nodes with valid matrix
+        if node.operation == OperationType.RESULT and node.matrix is not None and not node.error_state:
+            self.add_matrix_btn.show()
+        else:
+            self.add_matrix_btn.hide()
     
     def _display_matrix(self, matrix: np.ndarray) -> None:
         """Display a numpy array in the table."""
@@ -202,3 +230,9 @@ class Inspector(QWidget):
         """Refresh display for current node."""
         if self._current_node:
             self.set_node(self._current_node)
+    
+    def _on_add_matrix_clicked(self) -> None:
+        """Handle Add as Variable button click for Result nodes."""
+        if self._current_node and self._current_node.matrix is not None:
+            self.add_matrix_requested.emit(self._current_node)
+

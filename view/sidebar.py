@@ -109,6 +109,7 @@ class Sidebar(QWidget):
     """
     
     new_matrix_requested = Signal()
+    matrix_selected = Signal(str)  # matrix_id - for preview in Inspector
     matrix_edit_requested = Signal(str)  # matrix_id - for editing existing matrix
     matrix_delete_requested = Signal(str)  # matrix_id - for deleting matrix
     matrix_drag_started = Signal(str)  # matrix_id
@@ -181,6 +182,7 @@ class Sidebar(QWidget):
                 border: 1px solid #E0E0E0;
             }
         """)
+        self.matrix_list.itemClicked.connect(self._on_matrix_clicked)
         self.matrix_list.itemDoubleClicked.connect(self._on_matrix_double_clicked)
         self.matrix_list.installEventFilter(self)
         layout.addWidget(self.matrix_list)
@@ -291,6 +293,12 @@ class Sidebar(QWidget):
         """Update matrix display in list."""
         if node_id in self._matrix_items:
             self._matrix_items[node_id].setText(f"{name} [{shape}]")
+    
+    def _on_matrix_clicked(self, item: QListWidgetItem) -> None:
+        """Handle single-click on matrix item to show preview in Inspector."""
+        node_id = item.data(Qt.ItemDataRole.UserRole)
+        if node_id:
+            self.matrix_selected.emit(node_id)
     
     def _on_matrix_double_clicked(self, item: QListWidgetItem) -> None:
         """Handle double-click on matrix item to edit it."""

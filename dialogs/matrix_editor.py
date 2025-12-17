@@ -101,6 +101,9 @@ class MatrixEditor(QDialog):
             }
         """)
         
+        # Connect cell change to auto-resize columns
+        self.table.itemChanged.connect(self._on_cell_changed)
+        
         self._init_table()
         layout.addWidget(self.table, 1)  # Stretch factor 1 = expand to fill space
         
@@ -134,6 +137,15 @@ class MatrixEditor(QDialog):
                 item = QTableWidgetItem("0")
                 item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 self.table.setItem(r, c, item)
+    
+    def _on_cell_changed(self, item: QTableWidgetItem) -> None:
+        """Auto-resize column when cell content changes."""
+        if item:
+            col = item.column()
+            self.table.resizeColumnToContents(col)
+            # Ensure minimum width
+            if self.table.columnWidth(col) < 50:
+                self.table.setColumnWidth(col, 50)
     
     def _resize_to_fit_content(self) -> None:
         """Resize dialog to fit table content with minimal dead space."""
