@@ -35,7 +35,7 @@
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/matrix-lab.git
+   git clone https://github.com/ThekingGST/matrix-lab.git
    cd matrix-lab
    ```
 
