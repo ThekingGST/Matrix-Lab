@@ -13,7 +13,7 @@ from view.canvas import CanvasView
 from view.sidebar import Sidebar
 from view.inspector import Inspector
 from dialogs.matrix_editor import MatrixEditor
-
+import numpy as np
 
 class MainWindow(QMainWindow):
     """
@@ -89,6 +89,7 @@ class MainWindow(QMainWindow):
         
         # Inspector signals
         self.inspector.add_matrix_requested.connect(self._on_add_matrix_from_result)
+        self.inspector.dataDragged.connect(self._on_plot_data_dragged)
     
     def _apply_styles(self) -> None:
         """Apply global stylesheet."""
@@ -260,3 +261,23 @@ class MainWindow(QMainWindow):
         
         node = NodeData(display_name, node_type, op_type)
         self.canvas.add_node(node, pos)
+    
+    def _on_plot_data_dragged(self, node_id: str, new_matrix: np.ndarray) -> None:
+        """Handle mouse dragging in the plotter - updates node data and propagates changes."""
+        # Update graph nodes
+        if node_id in self.graph.nodes:
+            node = self.graph.nodes[node_id]
+            node.matrix = new_matrix
+            
+            # Since the matrix changed, trigger computation propagation
+            self.graph.propagate_from(node_id)
+            
+        # Update sidebar variable if we dragged the source variable representation
+        if node_id in self._matrix_nodes:
+            node = self._matrix_nodes[node_id]
+            node.matrix = new_matrix
+            self.sidebar.update_matrix(node_id, node.name, node.shape_str)
+            
+        # Force refresh of inspector and redraw of scene
+        self.inspector.refresh()
+        self.canvas.viewport().update()

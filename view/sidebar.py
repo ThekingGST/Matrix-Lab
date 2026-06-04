@@ -38,6 +38,7 @@ OPERATIONS = {
         (OperationType.EIGENVALUES, "Eigenvalues"),
         (OperationType.EIGENVECTORS, "Eigenvectors"),
         (OperationType.SVD, "SVD (Singular Values)"),
+        (OperationType.GRAM_SCHMIDT, "Gram-Schmidt"),
     ],
     "Solvers": [
         (OperationType.SOLVE, "Solve (Ax=B)"),

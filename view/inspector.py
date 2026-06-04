@@ -1,26 +1,28 @@
 """
-Inspector: The right panel (Zone C) for detailed data viewing.
+Inspector: The right panel (Zone C) upgraded to support numerical tables and geometric plots.
 """
 from typing import Optional
 import numpy as np
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QTableWidget, QTableWidgetItem,
-    QPushButton, QHBoxLayout, QApplication
+    QPushButton, QHBoxLayout, QApplication, QTabWidget, QCheckBox
 )
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont
 
 from model.node_data import NodeData, NodeType, OperationType
+from view.plot_widget import GeometricPlotWidget
 
 
 class Inspector(QWidget):
     """
     Right panel that shows detailed matrix data for selected nodes.
-    Context-sensitive: shows tips when nothing selected, data when node selected.
+    Supports a Numerical View (Table) and a Geometric View (Cartesian plot).
     """
     
     add_matrix_requested = Signal(object)  # Emits NodeData for adding as variable
+    dataDragged = Signal(str, object)      # Emits updates from PlotWidget dragging
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -56,12 +58,42 @@ class Inspector(QWidget):
         """)
         layout.addWidget(self.info_label)
         
-        # Data table (hidden initially)
+        # Create Tab Widget
+        self.tabs = QTabWidget()
+        self.tabs.setStyleSheet("""
+            QTabWidget::pane {
+                border: 1px solid #E0E0E0;
+                background: white;
+                border-radius: 6px;
+            }
+            QTabBar::tab {
+                background: #ECEFF1;
+                border: 1px solid #CFD8DC;
+                border-bottom-color: none;
+                border-top-left-radius: 4px;
+                border-top-right-radius: 4px;
+                padding: 6px 12px;
+                font-weight: bold;
+                color: #546E7A;
+            }
+            QTabBar::tab:selected {
+                background: white;
+                border-color: #E0E0E0;
+                border-bottom-color: white;
+                color: #1976D2;
+            }
+        """)
+        layout.addWidget(self.tabs, 1)
+        
+        # --- Tab 1: Numerical View ---
+        self.num_tab = QWidget()
+        num_layout = QVBoxLayout(self.num_tab)
+        num_layout.setContentsMargins(4, 4, 4, 4)
+        
         self.table = QTableWidget()
         self.table.setStyleSheet("""
             QTableWidget {
-                border: 1px solid #E0E0E0;
-                border-radius: 6px;
+                border: none;
                 background: white;
                 gridline-color: #F0F0F0;
             }
@@ -77,8 +109,7 @@ class Inspector(QWidget):
                 font-weight: bold;
             }
         """)
-        self.table.hide()
-        layout.addWidget(self.table, 1)
+        num_layout.addWidget(self.table, 1)
         
         # Copy button
         self.copy_btn = QPushButton("Copy to Clipboard")
@@ -96,8 +127,35 @@ class Inspector(QWidget):
             }
         """)
         self.copy_btn.clicked.connect(self._copy_to_clipboard)
-        self.copy_btn.hide()
-        layout.addWidget(self.copy_btn)
+        num_layout.addWidget(self.copy_btn)
+        
+        self.tabs.addTab(self.num_tab, "Numerical")
+        
+        # --- Tab 2: Geometric View ---
+        self.geo_tab = QWidget()
+        geo_layout = QVBoxLayout(self.geo_tab)
+        geo_layout.setContentsMargins(4, 4, 4, 4)
+        
+        # Plot widget
+        self.plot_widget = GeometricPlotWidget()
+        self.plot_widget.dataDragged.connect(self.dataDragged.emit)
+        geo_layout.addWidget(self.plot_widget, 1)
+        
+        # Layer controls/toggles
+        ctrl_layout = QHBoxLayout()
+        self.eigen_chk = QCheckBox("Eigenvectors")
+        self.eigen_chk.setChecked(True)
+        self.eigen_chk.toggled.connect(self._on_toggles_changed)
+        ctrl_layout.addWidget(self.eigen_chk)
+        
+        self.det_chk = QCheckBox("Det Area")
+        self.det_chk.setChecked(True)
+        self.det_chk.toggled.connect(self._on_toggles_changed)
+        ctrl_layout.addWidget(self.det_chk)
+        
+        geo_layout.addLayout(ctrl_layout)
+        
+        self.tabs.addTab(self.geo_tab, "Geometric")
         
         # Add Matrix button (only for Result nodes)
         self.add_matrix_btn = QPushButton("Add as Variable")
@@ -109,6 +167,7 @@ class Inspector(QWidget):
                 padding: 10px 16px;
                 border-radius: 6px;
                 font-weight: bold;
+                margin-top: 4px;
             }
             QPushButton:hover {
                 background-color: #1976D2;
@@ -117,9 +176,6 @@ class Inspector(QWidget):
         self.add_matrix_btn.clicked.connect(self._on_add_matrix_clicked)
         self.add_matrix_btn.hide()
         layout.addWidget(self.add_matrix_btn)
-        
-        # Stretch at bottom
-        layout.addStretch()
     
     def _show_empty_state(self) -> None:
         """Show the empty/tips state."""
@@ -133,8 +189,7 @@ class Inspector(QWidget):
             "<i style='color: #666;'>Drag matrices from the sidebar onto the canvas to begin.</i>"
             "</div>"
         )
-        self.table.hide()
-        self.copy_btn.hide()
+        self.tabs.hide()
         self.add_matrix_btn.hide()
     
     def set_node(self, node: Optional[NodeData]) -> None:
@@ -154,8 +209,45 @@ class Inspector(QWidget):
             info_text += f"<span style='color: red;'>Error: {node.error_state}</span>"
         
         self.info_label.setText(info_text)
+        self.tabs.show()
         
-        # Update table
+        # Routing to Visual vs. Numerical View
+        is_visual = node.is_visualizable
+        inputs = []
+        
+        if not is_visual and node.node_type in (NodeType.OPERATION, NodeType.RESULT):
+            inputs = [node.get_input(i) for i in range(node.input_count)]
+            is_visual = any(inp and inp.is_visualizable for inp in inputs) or (node.matrix is not None and node.is_visualizable)
+            
+        if is_visual:
+            self.tabs.setTabEnabled(1, True)
+            self.plot_widget.set_node(node)
+            
+            # Sync toggles with node metadata
+            if not hasattr(node, 'metadata'):
+                node.metadata = {}
+            self.eigen_chk.setChecked(node.metadata.get("show_eigen", True))
+            self.det_chk.setChecked(node.metadata.get("show_det", True))
+            
+            # Show layers controls only if matrix is 2x2
+            has_2x2 = False
+            if node.matrix is not None and node.matrix.shape == (2, 2):
+                has_2x2 = True
+            elif node.node_type in (NodeType.OPERATION, NodeType.RESULT):
+                inputs = [node.get_input(i) for i in range(node.input_count)]
+                if len(inputs) > 0 and inputs[0] and inputs[0].matrix is not None and inputs[0].matrix.shape == (2, 2):
+                    has_2x2 = True
+                    
+            self.eigen_chk.setVisible(has_2x2)
+            self.det_chk.setVisible(has_2x2)
+            
+            self.tabs.setCurrentIndex(1)  # Focus Geometric View by default
+        else:
+            self.tabs.setTabEnabled(1, False)
+            self.plot_widget.set_node(None)
+            self.tabs.setCurrentIndex(0)  # Fall back to Numerical View
+        
+        # Update Numerical table
         if node.matrix is not None:
             self._display_matrix(node.matrix)
             self.table.show()
@@ -169,11 +261,19 @@ class Inspector(QWidget):
             self.add_matrix_btn.show()
         else:
             self.add_matrix_btn.hide()
+            
+    def _on_toggles_changed(self) -> None:
+        """Handle layer toggle changes."""
+        if self._current_node:
+            if not hasattr(self._current_node, 'metadata'):
+                self._current_node.metadata = {}
+            self._current_node.metadata["show_eigen"] = self.eigen_chk.isChecked()
+            self._current_node.metadata["show_det"] = self.det_chk.isChecked()
+            self.plot_widget.update()
     
     def _display_matrix(self, matrix: np.ndarray) -> None:
         """Display a numpy array in the table."""
         if matrix.ndim == 0:
-            # Scalar
             self.table.setRowCount(1)
             self.table.setColumnCount(1)
             item = QTableWidgetItem(f"{float(matrix):.6g}")
@@ -191,7 +291,6 @@ class Inspector(QWidget):
         for r in range(rows):
             for c in range(cols):
                 val = matrix[r, c]
-                # Format complex numbers if needed
                 if np.iscomplex(val):
                     text = f"{val:.4g}"
                 else:
@@ -202,7 +301,6 @@ class Inspector(QWidget):
                 item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)  # Read-only
                 self.table.setItem(r, c, item)
         
-        # Resize columns to content
         self.table.resizeColumnsToContents()
     
     def _copy_to_clipboard(self) -> None:
@@ -214,7 +312,6 @@ class Inspector(QWidget):
         if matrix.ndim == 1:
             matrix = matrix.reshape(-1, 1)
         
-        # Format as tab-separated values
         lines = []
         for r in range(matrix.shape[0]):
             row_vals = []
@@ -235,4 +332,3 @@ class Inspector(QWidget):
         """Handle Add as Variable button click for Result nodes."""
         if self._current_node and self._current_node.matrix is not None:
             self.add_matrix_requested.emit(self._current_node)
-
