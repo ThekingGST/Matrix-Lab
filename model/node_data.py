@@ -42,6 +42,7 @@ class OperationType(Enum):
     EIGENVALUES = "eigenvalues"
     EIGENVECTORS = "eigenvectors"
     SVD = "svd"
+    GRAM_SCHMIDT = "gram_schmidt"
 
 
 # Define input counts for each operation
@@ -65,6 +66,7 @@ OPERATION_INPUTS = {
     OperationType.EIGENVALUES: 1,
     OperationType.EIGENVECTORS: 1,
     OperationType.SVD: 1,
+    OperationType.GRAM_SCHMIDT: 2,
 }
 
 
@@ -89,6 +91,19 @@ class NodeData:
         self.error_state: Optional[str] = None
         self._inputs: List[Optional['NodeData']] = [None] * OPERATION_INPUTS.get(operation, 0)
         self._on_change_callbacks: List[Callable] = []
+        self.metadata = {}
+    
+    @property
+    def is_visualizable(self) -> bool:
+        """Check if the node's matrix is visualizable in 2D space (2x1 or 2x2)."""
+        if self.matrix is None or self.error_state:
+            return False
+        shape = self.matrix.shape
+        if len(shape) == 2:
+            return shape == (2, 1) or shape == (2, 2)
+        elif len(shape) == 1:
+            return shape == (2,)
+        return False
     
     @property
     def input_count(self) -> int:

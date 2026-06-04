@@ -218,5 +218,16 @@ class Graph:
             # Return singular values as column vector
             _, s, _ = np.linalg.svd(matrices[0])
             return s.reshape(-1, 1)
+        elif op == OperationType.GRAM_SCHMIDT:
+            v1 = matrices[0].flatten()
+            v2 = matrices[1].flatten()
+            u1 = v1.copy()
+            norm_u1 = np.dot(u1, u1)
+            if norm_u1 > 1e-5:
+                u2 = v2 - (np.dot(v2, u1) / norm_u1) * u1
+            else:
+                u2 = v2.copy()
+            # Return as columns in a 2x2 matrix
+            return np.column_stack((u1, u2))
         
         raise ValueError(f"Unknown operation: {op}")
